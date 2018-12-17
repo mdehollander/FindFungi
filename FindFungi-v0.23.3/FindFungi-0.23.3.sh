@@ -19,9 +19,9 @@ z=$2
 
 
 ##### USER INPUT REQUIRED:
-ScriptPath=/home/user/scripts  #Location of downloaded python and shell scripts
-PreDir=/home/user/Some_Directory/$z  #Location you want FindFungi to build the analysis
-KrakenDir=/home/user/Location_of_Kraken_Databases  #Location of the 32 downloaded Kraken databases
+ScriptPath=/home/NIOO.INT/mattiash/analysis/sugarcane-metagenome-capes/FindFungi/FindFungi-v0.23.3/  #Location of downloaded python and shell scripts
+PreDir=/home/NIOO.INT/mattiash/analysis/sugarcane-metagenome-capes/$z  #Location you want FindFungi to build the analysis
+KrakenDir=/home/NIOO.INT/mattiash/analysis/FindFungi/Kraken_32DB/  #Location of the 32 downloaded Kraken databases
 FungTaxDir=/home/user/Location_of_Fungal-Taxids.txt  #Location of the Fungal taxids and PipelineSummary files from GitHub
 BLAST_DB_Dir=/home/user/Location_of_BLAST_Databases  #Location of the 949 downloaded BLAST databases
 #####
@@ -29,42 +29,42 @@ BLAST_DB_Dir=/home/user/Location_of_BLAST_Databases  #Location of the 949 downlo
 
 Dir=$PreDir/FindFungi 
 
-if [ ! -d $PreDir ]; then
-	mkdir $PreDir
-	echo "Number of reads in the raw input: " >> $PreDir/Run_Statistics.txt
-	LinesInReadsIn=$(wc -l $x | awk '{print $1}') 
-	ReadsIn=$((LinesInReadsIn/4))
-	echo $ReadsIn >> $PreDir/Run_Statistics.txt
-	mkdir $PreDir/ReadTrimming
-	bsub -K -q C skewer -l 30 -q 15 -t 30 -o $PreDir/ReadTrimming/$z $x &
-	wait
-	echo "Number of reads after trimming: " >> $PreDir/Run_Statistics.txt
-	LinesInReadsLeft=$(wc -l $PreDir/ReadTrimming/$z-trimmed.fastq | awk '{print $1}') 
-	ReadsLeft=$((LinesInReadsLeft/4))
-	echo $ReadsLeft >> $PreDir/Run_Statistics.txt
-	mkdir $PreDir/FASTA
-	sed -n '1~4s/^@/>/p;2~4p' $PreDir/ReadTrimming/$z-trimmed.fastq > $PreDir/FASTA/$z.fna #Convert FASTQ to FASTA
-	LineCt=$(wc -l $PreDir/FASTA/$z.fna | awk '{print $1}')
-	SplitN=$((LineCt/32 + 1))
-	SplitI=$(printf "%.0f" $SplitN)
-	split -l $SplitI $PreDir/FASTA/$z.fna $PreDir/FASTA/Split.
-	for d in $PreDir/FASTA/*Split.*; do 
-		bsub -K -q C sed -i 's/\ /_/g' $d & #Replace whitespace with underscore
-	done
-	wait
-	cat $PreDir/FASTA/*Split.* > $PreDir/FASTA/$z.final.fna  
-	mkdir $Dir
-	mkdir $Dir/Processing
-	mkdir $Dir/Processing/SplitFiles_Kraken
-	mkdir $Dir/Results
-	mkdir $Dir/Results/BLAST_Processing
-	mkdir $Dir/bsub_reports
+#if [ ! -d $PreDir ]; then
+#	mkdir $PreDir
+#	echo "Number of reads in the raw input: " >> $PreDir/Run_Statistics.txt
+#	LinesInReadsIn=$(wc -l $x | awk '{print $1}') 
+#	ReadsIn=$((LinesInReadsIn/4))
+#	echo $ReadsIn >> $PreDir/Run_Statistics.txt
+#	mkdir $PreDir/ReadTrimming
+#	skewer -l 30 -q 15 -t 30 -o $PreDir/ReadTrimming/$z $x &
+#	wait
+#	echo "Number of reads after trimming: " >> $PreDir/Run_Statistics.txt
+#	LinesInReadsLeft=$(wc -l $PreDir/ReadTrimming/$z-trimmed.fastq | awk '{print $1}') 
+#	ReadsLeft=$((LinesInReadsLeft/4))
+#	echo $ReadsLeft >> $PreDir/Run_Statistics.txt
+#	mkdir $PreDir/FASTA
+#	sed -n '1~4s/^@/>/p;2~4p' $PreDir/ReadTrimming/$z-trimmed.fastq > $PreDir/FASTA/$z.fna #Convert FASTQ to FASTA
+#	LineCt=$(wc -l $PreDir/FASTA/$z.fna | awk '{print $1}')
+#	SplitN=$((LineCt/32 + 1))
+#	SplitI=$(printf "%.0f" $SplitN)
+#	split -l $SplitI $PreDir/FASTA/$z.fna $PreDir/FASTA/Split.
+#	for d in $PreDir/FASTA/*Split.*; do 
+#		sed -i 's/\ /_/g' $d & #Replace whitespace with underscore
+#	done
+#	wait
+#	cat $PreDir/FASTA/*Split.* > $PreDir/FASTA/$z.final.fna  
+#	mkdir $Dir
+#	mkdir $Dir/Processing
+#	mkdir $Dir/Processing/SplitFiles_Kraken
+#	mkdir $Dir/Results
+#	mkdir $Dir/Results/BLAST_Processing
+#	mkdir $Dir/bsub_reports
 
 ### Release the Kraken 
-for i in $(seq 1 32); do
-	bsub -K -q C kraken --db $KrakenDir/Kraken_$i --threads 30 --fasta-input $PreDir/FASTA/$z.final.fna --output $Dir/Processing/SplitFiles_Kraken/$z.$i &
-done	
-wait
+#for i in $(seq 1 32); do
+#	kraken --db $KrakenDir/Kraken_$i --threads 30 --fasta-input $PreDir/FASTA/$z.final.fna --output $Dir/Processing/SplitFiles_Kraken/$z.$i
+#done
+#wait
 for d in $Dir/Processing/SplitFiles_Kraken/*; do
     File=$(basename $d)
     grep ^C $d > $Dir/Processing/$File.Classified.tsv
@@ -84,12 +84,14 @@ SplitInt=$(printf "%.0f" $SplitNum)
 
 for d in $Dir/Processing/SplitFiles_Kraken/*; do #Sort individual Kraken output files
 	File=$(basename $d)
-	bsub -K -q C sort_parallel --parallel 16 -o $Dir/Processing/SplitFiles_Kraken/sorted_$File -k2,2 $d & 
+	#sort_parallel --parallel 16 -o $Dir/Processing/SplitFiles_Kraken/sorted_$File -k2,2 $d &
+        sort -o $Dir/Processing/SplitFiles_Kraken/sorted_$File -k2,2 $d & 
 done
 wait
-bsub -K -q C sort_parallel --parallel 16 -o $Dir/Processing/sorted.$z.All-Kraken-Results.tsv -m -k2,2 $Dir/Processing/SplitFiles_Kraken/*sorted* & #Merge and sort all Kraken output files
+#sort_parallel --parallel 16 -o $Dir/Processing/sorted.$z.All-Kraken-Results.tsv -m -k2,2 $Dir/Processing/SplitFiles_Kraken/*sorted* & #Merge and sort all Kraken output files
+sort -o $Dir/Processing/sorted.$z.All-Kraken-Results.tsv -m -k2,2 $Dir/Processing/SplitFiles_Kraken/*sorted* & #Merge and sort all Kraken output files
 wait
-bsub -K -q C python2.7 $ScriptPath/Kraken32-to-Consensus.py $Dir/Processing/sorted.$z.All-Kraken-Results.tsv $Dir/Processing/Consensus.sorted.$z.All-Kraken-Results.tsv &
+python2.7 $ScriptPath/Kraken32-to-Consensus.py $Dir/Processing/sorted.$z.All-Kraken-Results.tsv $Dir/Processing/Consensus.sorted.$z.All-Kraken-Results.tsv &
 wait
 
 ### Count number of predictions for each taxonomic unit and sort
@@ -121,7 +123,7 @@ wait
 for d in $Dir/Processing/ReadNames.*; do
 	File=$(basename $d)
 	Taxid=$(echo $File | awk -F '.' '{print $2}')
-	bsub -K -q C -e $PreDir/FindFungi/bsub_reports/ReadNames-to-FASTA.$Taxid.stderr -o $Dir/Processing/ReadNames_bsub.$Taxid.fsa awk -v reads="$Dir/Processing/ReadNames.$Taxid.txt" -F "\t" 'BEGIN{while((getline k < reads)>0)i[k]=1}{gsub("^>","",$0); if(i[$1]){print ">"$1"\n"$2}}' $Dir/Processing/Reads-From-Kraken-Output.$z.Reformatted.fsa &
+	-e $PreDir/FindFungi/bsub_reports/ReadNames-to-FASTA.$Taxid.stderr -o $Dir/Processing/ReadNames_bsub.$Taxid.fsa awk -v reads="$Dir/Processing/ReadNames.$Taxid.txt" -F "\t" 'BEGIN{while((getline k < reads)>0)i[k]=1}{gsub("^>","",$0); if(i[$1]){print ">"$1"\n"$2}}' $Dir/Processing/Reads-From-Kraken-Output.$z.Reformatted.fsa &
 done
 wait
 
@@ -130,7 +132,7 @@ for d in $Dir/Processing/ReadNames_bsub.*.fsa; do
 	File=$(basename $d)
 	Taxid=$(echo $File | awk -F '.' '{print $2}')
 	tail -n +31 $d | head -n -6 > $Dir/Processing/ReadNames.$Taxid.fsa
-	bsub -K -q C blastn -task megablast -query $Dir/Processing/ReadNames.$Taxid.fsa -db $BLAST_DB_Dir/Taxid-$Taxid -out $Dir/Results/BLAST_Processing/BLAST.$Taxid -evalue 1E-20 -num_threads 30 -outfmt 6 &
+	blastn -task megablast -query $Dir/Processing/ReadNames.$Taxid.fsa -db $BLAST_DB_Dir/Taxid-$Taxid -out $Dir/Results/BLAST_Processing/BLAST.$Taxid -evalue 1E-20 -num_threads 30 -outfmt 6 &
 done
 wait
 
@@ -141,13 +143,13 @@ for d in $Dir/Results/BLAST_Processing/BLAST*; do
 	Taxid="${File#BLAST.}"
 	awk '! a[$1]++' $d > $Dir/Results/BLAST_Processing/Top-Hits.$File
 	awk '{print $2}' $Dir/Results/BLAST_Processing/Top-Hits.$File | sort | uniq -c > $Dir/Results/BLAST_Processing/Hit-Distribution.$File
-	bsub -K -q C python2.7 $ScriptPath/Skewness-Calculator_V4.py $Dir/Results/BLAST_Processing/Hit-Distribution.$File $Dir/Results/BLAST_Processing/Skewness.$File &
+	python2.7 $ScriptPath/Skewness-Calculator_V4.py $Dir/Results/BLAST_Processing/Hit-Distribution.$File $Dir/Results/BLAST_Processing/Skewness.$File &
 done
 wait
 cat $Dir/Results/BLAST_Processing/Skewness* > $Dir/Results/BLAST_Processing/All-Skewness-Scores &
 
 ### Combine Kraken results with Skewness scores
-bsub -K -q C python2.7 $ScriptPath/Consensus-CrossRef-Skewness_V2.py $Dir/Processing/Consensus.sorted.$z.All-Kraken-Results.tsv $Dir/Results/BLAST_Processing/All-Skewness-Scores $Dir/Results/Final_Results_$z.tsv & 
+python2.7 $ScriptPath/Consensus-CrossRef-Skewness_V2.py $Dir/Processing/Consensus.sorted.$z.All-Kraken-Results.tsv $Dir/Results/BLAST_Processing/All-Skewness-Scores $Dir/Results/Final_Results_$z.tsv & 
 wait
 
 ### Gather all taxonomical predictions and reformat to parsable format
@@ -159,16 +161,16 @@ awk 'NR == 1; NR > 1 {print $0 | "sort -t',' -k3,3rn -k4,4rn"}' $Dir/Results/Fin
 wait
 
 ### Generate wordcloud of species frequency and species tree
-bsub -K -q C python2.7 $ScriptPath/CSV-to-WordCloudFormat.py $Dir/Results/Final_Results_$z-lca.sorted.csv $Dir/Results/$z.WordCloud.R $Dir/Results/$z.Wordcloud.pdf & #Create R script for wordcloud creation
-bsub -K -q C python2.7 $ScriptPath/CSV-to-Tree.py $Dir/Results/Final_Results_$z-lca.sorted.csv $Dir/Results/$z.gv & #Create script for taxonomical tree creation
+python2.7 $ScriptPath/CSV-to-WordCloudFormat.py $Dir/Results/Final_Results_$z-lca.sorted.csv $Dir/Results/$z.WordCloud.R $Dir/Results/$z.Wordcloud.pdf & #Create R script for wordcloud creation
+python2.7 $ScriptPath/CSV-to-Tree.py $Dir/Results/Final_Results_$z-lca.sorted.csv $Dir/Results/$z.gv & #Create script for taxonomical tree creation
 wait
 
 ### Gather all reads classified by BLAST
 cat $Dir/Processing/ReadNames*.fsa > $Dir/Processing/All-Reads-From-BLAST_$z.fsa
 
 ### Print reads with predictions to file
-bsub -K -q C python2.7 $ScriptPath/ReadNames-to-FASTA_V8.py $Dir/Results/Final_Results_$z.tsv_AllResults.tsv $Dir/Processing/All-Reads-From-BLAST_$z.fsa $Dir/${z}_v0.23_FungalReads.tsv_AllResults.fsa & 
-bsub -K -q C python2.7 $ScriptPath/ReadNames-to-FASTA_V8.py $Dir/Results/Final_Results_$z.tsv $Dir/Processing/All-Reads-From-BLAST_$z.fsa $Dir/${z}_v0.23_FungalReads.fsa &
+python2.7 $ScriptPath/ReadNames-to-FASTA_V8.py $Dir/Results/Final_Results_$z.tsv_AllResults.tsv $Dir/Processing/All-Reads-From-BLAST_$z.fsa $Dir/${z}_v0.23_FungalReads.tsv_AllResults.fsa & 
+python2.7 $ScriptPath/ReadNames-to-FASTA_V8.py $Dir/Results/Final_Results_$z.tsv $Dir/Processing/All-Reads-From-BLAST_$z.fsa $Dir/${z}_v0.23_FungalReads.fsa &
 
 ### Create text summary of pipeline
 ClassifiedReads=$(wc -l $Dir/Processing/AllClassified_$z | awk '{print $1}')
@@ -187,11 +189,11 @@ FinishTime="Pipeline finished at $(date)"
 echo -e $StartTime"\n"$FinishTime"\n" >> $PreDir/SummaryFile.txt
 
 ### Rename output files with fungal percentage as a prefix
-FungalRead=$(bc -l <<< $FungalReadsBLAST_FungiBacteria/$ReadsIn)
-FungalReadPercentage=$(python -c "print(float($FungalRead*100))")  #Get the percentage of the original reads that are predicted to be fungal
-FungalReadPercentage2=$(printf "%0.2f\n" $FungalReadPercentage) #Shorten float to two decimal places
-cp $Dir/Results/Final_Results_$z-lca.sorted.csv $Dir/${FungalReadPercentage2}_${z}.Results.csv
-cp $Dir/Results/Final_Results_${z}_AllResults-lca.sorted.csv $Dir/${FungalReadPercentage2}_${z}.Results.IncludingFalsePositives.csv
+#FungalRead=$(bc -l <<< $FungalReadsBLAST_FungiBacteria/$ReadsIn)
+#FungalReadPercentage=$(python -c "print(float($FungalRead*100))")  #Get the percentage of the original reads that are predicted to be fungal
+#FungalReadPercentage2=$(printf "%0.2f\n" $FungalReadPercentage) #Shorten float to two decimal places
+#cp $Dir/Results/Final_Results_$z-lca.sorted.csv $Dir/${FungalReadPercentage2}_${z}.Results.csv
+#cp $Dir/Results/Final_Results_${z}_AllResults-lca.sorted.csv $Dir/${FungalReadPercentage2}_${z}.Results.IncludingFalsePositives.csv
 
 ### PDF creation
 echo "Not enough fungal reads to create wordcloud" >> $Dir/Results/WordcloudError.txt
